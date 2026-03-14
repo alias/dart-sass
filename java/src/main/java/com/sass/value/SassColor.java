@@ -18,6 +18,16 @@ public final class SassColor extends Value {
     private final double blue;
     private final double alpha;
 
+    /**
+     * The original format in which this color was written in the source,
+     * such as {@code "#ffffff"}, {@code "#fff"}, or {@code "white"}.
+     * {@code null} for computed colors (results of color functions).
+     *
+     * <p>When non-null, the serializer uses this to preserve the original
+     * representation in expanded mode — matching dart-sass behavior.</p>
+     */
+    private @Nullable String format;
+
     // Cached HSL values
     private @Nullable Double hue;
     private @Nullable Double saturation;
@@ -42,6 +52,24 @@ public final class SassColor extends Value {
     /** Creates an RGB color with alpha = 1. */
     public static SassColor rgb(double red, double green, double blue) {
         return rgb(red, green, blue, 1.0);
+    }
+
+    /**
+     * Creates an RGB color with the original source format preserved.
+     * The format string (e.g., "#ffffff", "#fff", "white") is used by the
+     * serializer to produce output that matches the original source.
+     */
+    public static SassColor rgbWithFormat(double red, double green, double blue,
+                                           double alpha, String format) {
+        var color = rgb(red, green, blue, alpha);
+        color.format = format;
+        return color;
+    }
+
+    /** Creates an RGB color with format preserved and alpha = 1. */
+    public static SassColor rgbWithFormat(double red, double green, double blue,
+                                           String format) {
+        return rgbWithFormat(red, green, blue, 1.0, format);
     }
 
     /** Creates an HSL color. Hue is 0-360, saturation/lightness are 0-100, alpha is 0-1. */
@@ -89,6 +117,12 @@ public final class SassColor extends Value {
     }
 
     // -- Channel accessors --
+
+    /**
+     * Returns the original format string if the color was parsed from source,
+     * or {@code null} for computed colors.
+     */
+    public @Nullable String getFormat() { return format; }
 
     /** Red channel (0-255). */
     public double getRed() { return red; }

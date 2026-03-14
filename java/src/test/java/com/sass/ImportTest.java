@@ -76,7 +76,7 @@ class ImportTest {
 
             var result = SassCompiler.compileFile(tempDir.resolve("main.scss"));
 
-            assertThat(result.css()).contains("background: red");
+            assertThat(result.css()).contains("background: #ff0000");
         }
 
         @Test
@@ -290,7 +290,7 @@ class ImportTest {
 
             var result = SassCompiler.compileFile(tempDir.resolve("main.scss"));
 
-            assertThat(result.css()).contains("color: red");
+            assertThat(result.css()).contains("color: #f00");
         }
 
         @Test

@@ -30,7 +30,7 @@ public final class ComplexNumber extends SassNumber {
     }
 
     @Override
-    protected SassNumber withValue(double value) {
+    public SassNumber withValue(double value) {
         return new ComplexNumber(value, numeratorUnits, denominatorUnits);
     }
 }

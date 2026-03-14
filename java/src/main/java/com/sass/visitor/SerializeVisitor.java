@@ -183,11 +183,16 @@ public final class SerializeVisitor
         writeIndentation();
         buffer.append("@media");
         var firstQuery = queries.get(0);
+        // In compressed mode, the space after @media can only be omitted when the
+        // query starts with '(' (e.g. "@media(min-width:800px)"). In all other cases
+        // — modifier ("only", "not"), media type ("screen", "print"), or conditions
+        // stored as unparsed text — the space is mandatory.
+        var firstCondition = firstQuery.getConditions().isEmpty()
+                ? null : firstQuery.getConditions().get(0);
         if (!isCompressed()
                 || firstQuery.getModifier() != null
                 || firstQuery.getType() != null
-                || (firstQuery.getConditions().size() == 1
-                    && firstQuery.getConditions().get(0).startsWith("(not "))) {
+                || (firstCondition != null && !firstCondition.startsWith("("))) {
             buffer.append(' ');
         }
 
@@ -250,10 +255,51 @@ public final class SerializeVisitor
         }
 
         writeIndentation();
-        buffer.append(selector);
+        if (isCompressed()) {
+            buffer.append(selector);
+        } else {
+            // In expanded mode, split comma-separated selectors onto separate lines
+            writeMultiLineSelector(selector);
+        }
         writeOptionalSpace();
         visitChildren(node);
         return null;
+    }
+
+    /**
+     * Writes a comma-separated selector list with each selector on its own line,
+     * matching dart-sass's expanded output format.
+     * Commas inside parentheses (e.g. {@code :is(.a, .b)}) are not split on.
+     */
+    private void writeMultiLineSelector(String selector) {
+        int depth = 0;
+        int start = 0;
+        boolean first = true;
+        for (int i = 0; i < selector.length(); i++) {
+            char c = selector.charAt(i);
+            if (c == '(' || c == '[') depth++;
+            else if (c == ')' || c == ']') depth--;
+            else if (c == ',' && depth == 0) {
+                if (!first) writeIndentation();
+                first = false;
+                buffer.append(selector, start, i + 1); // include comma
+                buffer.append('\n');
+                start = i + 1;
+                // Skip all whitespace (including newlines) after comma
+                while (start < selector.length()
+                        && (selector.charAt(start) == ' '
+                        || selector.charAt(start) == '\n'
+                        || selector.charAt(start) == '\r'
+                        || selector.charAt(start) == '\t')) {
+                    start++;
+                }
+            }
+        }
+        // Write the last (or only) selector
+        if (!first) writeIndentation();
+        if (start < selector.length()) {
+            buffer.append(selector, start, selector.length());
+        }
     }
 
     @Override
@@ -724,17 +770,17 @@ public final class SerializeVisitor
             return;
         }
 
-        // Always emit generated transparent colors in rgba format.
-        // This works around an IE bug. See sass/sass#1782.
+        // If the color has a preserved original format (from the source),
+        // use it in expanded mode — this matches dart-sass behavior where
+        // #ffffff stays #ffffff, #fff stays #fff, white stays white.
         if (opaque) {
-            // Try named color
-            var namedColor = ColorNames.COLORS_TO_NAMES.get(color);
-            if (namedColor != null) {
-                buffer.append(namedColor);
+            var format = color.getFormat();
+            if (format != null) {
+                buffer.append(format);
                 return;
             }
 
-            // Try hex
+            // For computed colors with integer RGB values, use hex.
             if (canUseHex(color)) {
                 buffer.append('#');
                 writeHexComponent((int) Math.round(color.getRed()));

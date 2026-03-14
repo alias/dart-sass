@@ -881,11 +881,34 @@ public abstract class StylesheetParser extends Parser {
     }
 
     private void mediaQuery(InterpolationBuffer buffer) {
+        // Matches dart-sass _mediaQuery: handles all valid media query forms.
         if (scanner.peekChar() == $lparen) {
             mediaInParens(buffer);
+            whitespace();
+            if (scanIdentifier("and")) {
+                buffer.write(" and ");
+                whitespace();
+                mediaLogicSequence(buffer, "and");
+            } else if (scanIdentifier("or")) {
+                buffer.write(" or ");
+                whitespace();
+                mediaLogicSequence(buffer, "or");
+            }
             return;
         }
+
         var identifier1 = interpolatedIdentifier();
+        String plain1 = identifier1.asPlain();
+        if (plain1 != null && plain1.equalsIgnoreCase("not")) {
+            // "@media not (...) {"
+            whitespace();
+            if (!lookingAtInterpolatedIdentifier()) {
+                buffer.write("not ");
+                mediaOrInterp(buffer);
+                return;
+            }
+        }
+
         whitespace();
         buffer.addInterpolation(identifier1);
         if (!lookingAtInterpolatedIdentifier()) return;
@@ -894,12 +917,28 @@ public abstract class StylesheetParser extends Parser {
         var identifier2 = interpolatedIdentifier();
         String plain2 = identifier2.asPlain();
         if (plain2 != null && plain2.equalsIgnoreCase("and")) {
-            buffer.write(" and ");
             whitespace();
-            mediaLogicSequence(buffer, "and");
+            buffer.write(" and ");
         } else {
+            whitespace();
             buffer.addInterpolation(identifier2);
+            if (scanIdentifier("and")) {
+                whitespace();
+                buffer.write(" and ");
+            } else {
+                return;
+            }
         }
+
+        // We've consumed either `IDENTIFIER "and"` or `IDENTIFIER IDENTIFIER "and"`.
+        if (scanIdentifier("not")) {
+            whitespace();
+            buffer.write("not ");
+            mediaOrInterp(buffer);
+            return;
+        }
+
+        mediaLogicSequence(buffer, "and");
     }
 
     private void mediaLogicSequence(InterpolationBuffer buffer, String operator) {
@@ -907,6 +946,7 @@ public abstract class StylesheetParser extends Parser {
             mediaOrInterp(buffer);
             whitespace();
             if (!scanIdentifier(operator)) return;
+            whitespace(); // consume whitespace after "and"/"or" before next condition
             buffer.writeCharCode($space);
             buffer.write(operator);
             buffer.writeCharCode($space);
@@ -1169,12 +1209,17 @@ public abstract class StylesheetParser extends Parser {
             }
         } else {
             // Default namespace from URL
-            int lastSlash = url.lastIndexOf('/');
-            String basename = lastSlash >= 0 ? url.substring(lastSlash + 1) : url;
-            int dot = basename.indexOf('.');
-            namespace = basename.substring(
-                    basename.startsWith("_") ? 1 : 0,
-                    dot == -1 ? basename.length() : dot);
+            // For built-in modules (sass:xxx), the namespace is the module name
+            if (url.startsWith("sass:")) {
+                namespace = url.substring(5);
+            } else {
+                int lastSlash = url.lastIndexOf('/');
+                String basename = lastSlash >= 0 ? url.substring(lastSlash + 1) : url;
+                int dot = basename.indexOf('.');
+                namespace = basename.substring(
+                        basename.startsWith("_") ? 1 : 0,
+                        dot == -1 ? basename.length() : dot);
+            }
         }
 
         whitespace();
@@ -1215,7 +1260,9 @@ public abstract class StylesheetParser extends Parser {
 
         Interpolation value = null;
         if (scanner.peekChar() != $exclamation && !atEndOfStatement()) {
-            value = interpolatedDeclarationValue(false);
+            // Use allowOpenBrace=false so that '{' stops value parsing and is
+            // recognized as the start of children (matching dart-sass's almostAnyValue).
+            value = interpolatedDeclarationValue(false, false, true, false, false);
         }
 
         try {
@@ -2031,7 +2078,10 @@ public abstract class StylesheetParser extends Parser {
                 }
             }
         }
-        return SassColor.rgb(red, green, blue, alpha);
+        // Preserve the original hex text (e.g., "#fff", "#ffffff") for
+        // dart-sass-compatible serialization.
+        String format = scanner.substring(start.position());
+        return SassColor.rgbWithFormat(red, green, blue, alpha, format);
     }
 
     private boolean isHexColor(Interpolation interpolation) {
@@ -2103,6 +2153,9 @@ public abstract class StylesheetParser extends Parser {
 
     /**
      * Consumes a number expression.
+     *
+     * <p>Matches dart-sass's {@code _number()}, {@code _tryDecimal()}, and
+     * {@code _tryExponent()} methods.</p>
      */
     protected NumberExpression number() {
         var start = scanner.getState();
@@ -2111,7 +2164,12 @@ public abstract class StylesheetParser extends Parser {
 
         if (scanner.peekChar() != $dot) consumeNaturalNumber();
 
-        // Try decimal
+        // Try decimal — matches dart-sass _tryDecimal().
+        // Don't complain about a dot after a number unless the number starts
+        // with a dot. We don't allow a plain ".", but we need to allow "1."
+        // so that "1..." will work as a rest argument.
+        boolean allowTrailingDot = scanner.getPosition() != start.position()
+                && first != $plus && first != $minus;
         if (scanner.peekChar() == $dot) {
             int next = scanner.peekChar(1);
             if (next != -1 && Characters.isDigit(next)) {
@@ -2119,6 +2177,8 @@ public abstract class StylesheetParser extends Parser {
                 while (scanner.peekChar() != -1 && Characters.isDigit(scanner.peekChar())) {
                     scanner.readChar();
                 }
+            } else if (!allowTrailingDot) {
+                throw scanner.error("Expected digit.", scanner.getPosition() + 1, 1);
             }
         }
 
@@ -2285,7 +2345,12 @@ public abstract class StylesheetParser extends Parser {
                 String lower = plain.toLowerCase();
                 var color = COLOR_NAMES_BY_NAME.get(lower);
                 if (color != null) {
-                    return new ColorExpression(color, ident.getSpan());
+                    // Preserve the original name as format for dart-sass-
+                    // compatible serialization.
+                    var formatted = SassColor.rgbWithFormat(
+                            color.getRed(), color.getGreen(), color.getBlue(),
+                            color.getAlpha(), plain);
+                    return new ColorExpression(formatted, ident.getSpan());
                 }
             }
 
@@ -2334,12 +2399,17 @@ public abstract class StylesheetParser extends Parser {
         String normalized = unvendor(name);
         InterpolationBuffer buffer;
         switch (normalized) {
-            case "calc", "element", "expression":
+            case "element", "expression":
                 if (!scanner.scanChar($lparen)) return null;
                 buffer = new InterpolationBuffer();
                 buffer.write(name);
                 buffer.writeCharCode($lparen);
                 break;
+            case "calc":
+                // Don't treat calc() as a special function — let it be parsed as
+                // a regular FunctionExpression so Sass expressions inside it
+                // (variables, function calls, arithmetic) are properly evaluated.
+                return null;
             case "url":
                 var contents = tryUrlContents(start);
                 if (contents != null) {

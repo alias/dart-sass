@@ -50,11 +50,17 @@ public final class Environment {
             List<Map<String, Value>> variables,
             List<Map<String, Callable>> functions,
             List<Map<String, Callable>> mixins,
-            @Nullable UserDefinedContent content) {
+            @Nullable UserDefinedContent content,
+            Map<String, Module> modules,
+            List<Module> globalModules,
+            List<Module> forwardedModules) {
         this.variables = variables;
         this.functions = functions;
         this.mixins = mixins;
         this.content = content;
+        this.modules.putAll(modules);
+        this.globalModules.addAll(globalModules);
+        this.forwardedModules.addAll(forwardedModules);
     }
 
     /**
@@ -62,14 +68,18 @@ public final class Environment {
      *
      * <p>The closure captures a snapshot of the current scope stack so that
      * callables defined in this environment can access their enclosing scopes
-     * even after those scopes have been popped.</p>
+     * even after those scopes have been popped. Also captures module references
+     * so that functions/mixins can access their module-scoped imports.</p>
      */
     public Environment closure() {
         return new Environment(
                 copyStack(variables),
                 copyStack(functions),
                 copyStack(mixins),
-                content
+                content,
+                modules,
+                globalModules,
+                forwardedModules
         );
     }
 
@@ -347,6 +357,11 @@ public final class Environment {
             if (mx != null) return mx;
         }
         return null;
+    }
+
+    /** Returns the set of module namespaces (for debugging). */
+    public java.util.Set<String> getModuleNamespaces() {
+        return modules.keySet();
     }
 
     /** Returns all forwarded modules. */

@@ -75,6 +75,11 @@ public abstract class SassNumber extends Value {
         return new UnitlessNumber(value);
     }
 
+    /** Creates a unitless number. Alias for {@link #create(double)}. */
+    public static SassNumber unitless(double value) {
+        return new UnitlessNumber(value);
+    }
+
     /** Creates a number with a single unit. */
     public static SassNumber create(double value, String unit) {
         return new SingleUnitNumber(value, unit);
@@ -359,7 +364,21 @@ public abstract class SassNumber extends Value {
     }
 
     /** Returns a new number with the same units but a different value. */
-    protected abstract SassNumber withValue(double value);
+    public abstract SassNumber withValue(double value);
+
+    /**
+     * Whether this number's units are compatible with another number's for
+     * comparison and arithmetic purposes.
+     */
+    public boolean isComparableTo(SassNumber other) {
+        if (!hasUnits() || !other.hasUnits()) return true;
+        try {
+            other.coerceValueToUnits(getNumeratorUnits(), getDenominatorUnits(), null);
+            return true;
+        } catch (SassScriptException e) {
+            return false;
+        }
+    }
 
     @Override
     public boolean equals(Object other) {

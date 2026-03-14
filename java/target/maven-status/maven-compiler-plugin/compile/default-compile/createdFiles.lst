@@ -75,6 +75,7 @@ com\sass\ast\sass\MapExpression$ExpressionPair.class
 com\sass\ast\sass\WhileRule.class
 com\sass\ast\sass\ParenthesizedExpression.class
 com\sass\ast\css\CssDeclaration.class
+com\sass\module\BuiltInModule.class
 com\sass\ast\sass\SupportsNegation.class
 com\sass\callable\BuiltInCallable$Overload.class
 com\sass\callable\BuiltInCallable.class
@@ -178,3 +179,4 @@ com\sass\ast\css\CssNode.class
 com\sass\callable\PlainCssCallable.class
 com\sass\ast\sass\AtRule.class
 com\sass\util\FileSpan.class
+com\sass\Main.class

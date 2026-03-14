@@ -26,7 +26,7 @@ public final class SingleUnitNumber extends SassNumber {
     public boolean hasComplexUnits() { return false; }
 
     @Override
-    protected SassNumber withValue(double value) {
+    public SassNumber withValue(double value) {
         return new SingleUnitNumber(value, unit);
     }
 }
