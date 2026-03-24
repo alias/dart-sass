@@ -665,7 +665,7 @@ public final class EvaluateVisitor implements StatementVisitor<@Nullable Value>,
 
         // Mark the last child of the parent as a group end for blank line separation
         if (styleRule == null && !parent.getChildren().isEmpty()) {
-            parent.getChildren().getLast().setGroupEnd(true);
+            parent.getChildren().get(parent.getChildren().size() - 1).setGroupEnd(true);
         }
 
         return null;

@@ -161,7 +161,7 @@ public final class FilesystemImporter {
      */
     private @Nullable String exactlyOne(List<String> paths) {
         if (paths.isEmpty()) return null;
-        if (paths.size() == 1) return paths.getFirst();
+        if (paths.size() == 1) return paths.get(0);
         var sb = new StringBuilder("It's not clear which file to import. Found:\n");
         for (var p : paths) {
             sb.append("  ").append(p).append('\n');

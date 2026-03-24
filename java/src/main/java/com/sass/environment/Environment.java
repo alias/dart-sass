@@ -109,9 +109,9 @@ public final class Environment {
         try {
             return callback.get();
         } finally {
-            variables.removeLast();
-            functions.removeLast();
-            mixins.removeLast();
+            variables.remove(variables.size() - 1);
+            functions.remove(functions.size() - 1);
+            mixins.remove(mixins.size() - 1);
         }
     }
 
@@ -126,9 +126,9 @@ public final class Environment {
         try {
             callback.run();
         } finally {
-            variables.removeLast();
-            functions.removeLast();
-            mixins.removeLast();
+            variables.remove(variables.size() - 1);
+            functions.remove(functions.size() - 1);
+            mixins.remove(mixins.size() - 1);
         }
     }
 
@@ -165,7 +165,7 @@ public final class Environment {
             }
         }
         // Not found in any scope: set in current scope
-        variables.getLast().put(name, value);
+        variables.get(variables.size() - 1).put(name, value);
     }
 
     /**
@@ -173,21 +173,21 @@ public final class Environment {
      * it exists in an enclosing scope.
      */
     public void setLocalVariable(String name, Value value) {
-        variables.getLast().put(name, value);
+        variables.get(variables.size() - 1).put(name, value);
     }
 
     /**
      * Sets a variable at the global (root) scope.
      */
     public void setGlobalVariable(String name, Value value) {
-        variables.getFirst().put(name, value);
+        variables.get(0).put(name, value);
     }
 
     /**
      * Returns the value of a global variable, or {@code null} if not found.
      */
     public @Nullable Value getGlobalVariable(String name) {
-        return variables.getFirst().get(name);
+        return variables.get(0).get(name);
     }
 
     /** Returns whether a variable with the given name exists in any scope. */
@@ -197,7 +197,7 @@ public final class Environment {
 
     /** Returns whether a variable exists at the global scope. */
     public boolean globalVariableExists(String name) {
-        return variables.getFirst().containsKey(name);
+        return variables.get(0).containsKey(name);
     }
 
     /** Returns whether we are at the global (root) scope level. */
@@ -223,7 +223,7 @@ public final class Environment {
 
     /** Sets a function in the current (innermost) scope. */
     public void setFunction(String name, Callable callable) {
-        functions.getLast().put(name, callable);
+        functions.get(functions.size() - 1).put(name, callable);
     }
 
     /** Returns whether a function with the given name exists. */
@@ -249,7 +249,7 @@ public final class Environment {
 
     /** Sets a mixin in the current (innermost) scope. */
     public void setMixin(String name, Callable callable) {
-        mixins.getLast().put(name, callable);
+        mixins.get(mixins.size() - 1).put(name, callable);
     }
 
     /** Returns whether a mixin with the given name exists. */
@@ -371,17 +371,17 @@ public final class Environment {
 
     /** Returns an immutable snapshot of the global-scope variables. */
     public Map<String, Value> getGlobalVariables() {
-        return new HashMap<>(variables.getFirst());
+        return new HashMap<>(variables.get(0));
     }
 
     /** Returns an immutable snapshot of the global-scope functions. */
     public Map<String, Callable> getGlobalFunctions() {
-        return new HashMap<>(functions.getFirst());
+        return new HashMap<>(functions.get(0));
     }
 
     /** Returns an immutable snapshot of the global-scope mixins. */
     public Map<String, Callable> getGlobalMixins() {
-        return new HashMap<>(mixins.getFirst());
+        return new HashMap<>(mixins.get(0));
     }
 
     // -----------------------------------------------------------------------
