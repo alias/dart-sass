@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.sass.parse.ScssParserTest
--------------------------------------------------------------------------------
-Tests run: 17, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.041 s -- in com.sass.parse.ScssParserTest
