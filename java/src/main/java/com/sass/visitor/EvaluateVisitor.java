@@ -1504,7 +1504,7 @@ public final class EvaluateVisitor implements StatementVisitor<@Nullable Value>,
             case PLUS -> left.plus(right);
             case MINUS -> left.minus(right);
             case TIMES -> left.times(right);
-            case DIVIDED_BY -> left.dividedBy(right);
+            case DIVIDED_BY -> slash(left, right, node);
             case MODULO -> left.modulo(right);
             case GREATER_THAN -> left.greaterThan(right);
             case GREATER_THAN_OR_EQUALS -> left.greaterThanOrEquals(right);
@@ -1515,6 +1515,22 @@ public final class EvaluateVisitor implements StatementVisitor<@Nullable Value>,
             default -> throw new SassRuntimeException(
                     "Unknown operator " + operator, node.getSpan());
         };
+    }
+
+    /**
+     * Implements the SassScript {@code /} operator.
+     * <p>
+     * When both operands are plain numbers and the expression is marked as
+     * allowing slash-separated output (e.g., {@code -1 / 1} in
+     * {@code grid-column: -1 / 1}), the result carries slash notation so that
+     * the serializer emits {@code -1/1} rather than computing {@code -1.0}.
+     */
+    private Value slash(Value left, Value right, BinaryOperationExpression node) {
+        var result = left.dividedBy(right);
+        if (node.allowsSlash() && left instanceof SassNumber leftNum && right instanceof SassNumber rightNum) {
+            return ((SassNumber) result).withSlash(leftNum, rightNum);
+        }
+        return result;
     }
 
     @Override

@@ -219,4 +219,57 @@ class SassCompilerTest {
             assertThat(result).doesNotContain("\n");
         }
     }
+
+    /**
+     * Tests for forward-slash in CSS values (grid-column, grid-row, font shorthand, etc.).
+     * The slash must NOT be treated as division — it must be preserved verbatim.
+     */
+    @Nested
+    class SlashSeparatedValues {
+
+        @Test
+        void gridColumnSlashPreserved() {
+            // grid-column: -1 / 1 must stay as "-1/1", not collapse to "-1"
+            assertThat(compile(".a { grid-column: -1 / 1; }"))
+                    .contains("grid-column: -1/1");
+        }
+
+        @Test
+        void gridColumnPositiveSlash() {
+            assertThat(compile(".a { grid-column: 1 / 3; }"))
+                    .contains("grid-column: 1/3");
+        }
+
+        @Test
+        void gridRowSlashPreserved() {
+            assertThat(compile(".a { grid-row: 2 / 4; }"))
+                    .contains("grid-row: 2/4");
+        }
+
+        @Test
+        void gridColumnNegativeSpan() {
+            // Spanning all columns: grid-column: 1 / -1
+            assertThat(compile(".a { grid-column: 1 / -1; }"))
+                    .contains("grid-column: 1/-1");
+        }
+
+        @Test
+        void slashInNestedRule() {
+            assertThat(compile(".wrapper { .item { grid-column: 2 / 5; } }"))
+                    .contains("grid-column: 2/5");
+        }
+
+        @Test
+        void slashNotComputedAsDivision() {
+            // -1 / 1 must NOT be computed as the number -1
+            String css = compile(".a { grid-column: -1 / 1; }");
+            assertThat(css).doesNotContain("grid-column: -1;");
+        }
+
+        @Test
+        void slashPreservedInCompressedOutput() {
+            assertThat(compileCompressed(".a { grid-column: 1 / 3; }"))
+                    .contains("grid-column:1/3");
+        }
+    }
 }

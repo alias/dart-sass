@@ -64,8 +64,43 @@ public abstract class SassNumber extends Value {
     private final double value;
     protected @Nullable Integer hashCache;
 
+    /**
+     * If non-null, this number should be serialized as {@code before/after} (slash-separated)
+     * rather than as a plain numeric value. Used for CSS grid and font shorthand syntax.
+     */
+    private @Nullable SassNumber asSlashBefore;
+    private @Nullable SassNumber asSlashAfter;
+
     protected SassNumber(double value) {
         this.value = value;
+    }
+
+    /**
+     * Returns the slash-separated pair {@code (before, after)} if this number carries slash
+     * notation, or {@code null} otherwise.
+     */
+    public @Nullable SassNumber[] getAsSlash() {
+        if (asSlashBefore == null) return null;
+        return new SassNumber[]{asSlashBefore, asSlashAfter};
+    }
+
+    /**
+     * Returns a copy of this number with the given slash pair attached, so that it serializes
+     * as {@code before/after} in CSS output.
+     */
+    public SassNumber withSlash(SassNumber before, SassNumber after) {
+        var copy = withValue(this.value);
+        copy.asSlashBefore = before;
+        copy.asSlashAfter = after;
+        return copy;
+    }
+
+    /**
+     * Returns a copy of this number without slash notation. If no slash was set, returns this.
+     */
+    public SassNumber withoutSlash() {
+        if (asSlashBefore == null) return this;
+        return withValue(this.value);
     }
 
     // -- Factory methods --

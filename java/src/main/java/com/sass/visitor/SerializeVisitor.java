@@ -479,6 +479,14 @@ public final class SerializeVisitor
 
     @Override
     public Void visitNumber(SassNumber value) {
+        var asSlash = value.getAsSlash();
+        if (asSlash != null) {
+            visitNumber(asSlash[0]);
+            buffer.append('/');
+            visitNumber(asSlash[1]);
+            return null;
+        }
+
         if (!Double.isFinite(value.getValue())) {
             visitCalculation(SassCalculation.calc(value));
             return null;
